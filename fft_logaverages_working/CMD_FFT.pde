@@ -1,34 +1,16 @@
-class FrequencyBand {
-  float freqStart;
-  float freqEnd;
-  FrequencyBand(float frequencyStart, float frequencyEnd) {
-    freqStart = frequencyStart;
-    freqEnd = frequencyEnd;
-  }
-}
-
 class FrequencyAnalyzer {
-  int linNum = 30;
+  int bands = 30;
   Minim minim;
   AudioPlayer song;
   AudioInput input;
-  //AudioIn in;
   FFT fft;
 
-
-  float maxVal = 0.0;
+  float maxVal = 0.000001; //avoid NaN when using maxVal in map() in the first frame.
 
   boolean enableMic = false;
   boolean enableSong = false;
-  boolean enableMixer = false;
-
   boolean showInfo = false;
-  float startTime = 0;
-  float[] avg = new float[0];
-  float[] max = new float[0];
-  float[] count = new float[0];
-  float[] size = new float[0];
-  FrequencyBand[] frequencyBands = new FrequencyBand[0];
+  
 
   FrequencyAnalyzer(PApplet p) {
     this(p, 3);
@@ -36,14 +18,13 @@ class FrequencyAnalyzer {
 
   FrequencyAnalyzer(PApplet p, int bandsPerOctave) {
 
-    linNum = bandsPerOctave * 10;
+    bands = bandsPerOctave * 10;
     minim = new Minim(p);
 
     fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
     //fft = new FFT(input.bufferSize(), input.sampleRate());
 
-    //fft.linAverages(linNum);
-    fft.logAverages(22, bandsPerOctave); //results in 30 bands. 1 results in 10 etc.
+    fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
   }
 
   void enableMicrophone() {
@@ -57,76 +38,53 @@ class FrequencyAnalyzer {
     enableSong = true;
   }
 
-  //void addFrequencyBand(FrequencyBand b) {
-  //  frequencyBands = (FrequencyBand[]) append (frequencyBands, b);
-  //  avg = append(avg, 0.1);
-  //  max = append(max, 0.1);
-  //  count = append(count, 0);
-  //  size = append(size, 0);
-  //}
+  //normalize the average for the given index
+  float getAvg(int index) {
+    return map(fft.getAvg(index), 0, maxVal, 0, 1);
+  }
 
-  //void resetMax(float duration) {
-  //  if (millis() - startTime > duration) {
-  //    for (int j=0; j<frequencyBands.length; j++) max[j] = avg[j];
-  //    startTime = millis();
-  //  }
-  //}
-
-  float getAvg(int i) {
-    println("maxValue: " + maxVal);
-    return map(fft.getAvg(i), 0, maxVal, 0, 1);
+  //set a new max value for the given index and constrain the result between 0 and 1
+  float getAvg(int index, float max) {
+    return constrain(map(fft.getAvg(index), 0, max, 0, 1), 0, 1);
   }
 
   void run() {
 
     if (enableSong) fft.forward(song.mix);
     if (enableMic) fft.forward(input.mix);
-    //if (enableMixer) fft.forward(in.mix);
 
     //determine max value to normalize all average values
     for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > maxVal) maxVal = fft.getAvg(i);
-    
-    
-    
-    //for (int j=0; j<frequencyBands.length; j++) {
-    //  avg[j] = 0;
-    //  count[j] = 0;
-    //}
 
+    if (showInfo) {
+      pushStyle();
+      fill(200, 127);
+      rect(0, 0, width, 100);
+      for (int i = 0; i < fAnalyzer.bands; i++) {
+        float xR = (i * width) / bands;
+        float yR = 100;
 
+        fill(255);
+        rect(xR, yR, width / bands, lerp(0, -100, fAnalyzer.getAvg(i)));
+        fill(255, 0, 0);
+        textAlign(CENTER, CENTER);
+        textSize(14);
+        text(round(lerp(0, maxVal, fAnalyzer.getAvg(i))), xR + (width / bands / 2), yR - 20);
+        textSize(8);
+        text(i, xR + (width / bands / 2), yR-6);
+      }
+      textSize(25);
+      text(round(frameRate), 20, 20);
+      popStyle();
+    }
 
-    //for (int j=0; j<frequencyBands.length; j++) {
-    //  if (count[j]>0) avg[j] /= count[j];
-    //  max[j] = max(max[j], avg[j]);
-    //  avg[j] = constrain(avg[j], 0, max[j]);
-    //  size[j] = map(avg[j], 0, max[j], 0, 400);
-
-    //  if (showInfo) {
-    //    pushStyle();
-    //    rectMode(CENTER);
-    //    textAlign(CENTER, CENTER);
-    //    noStroke();
-    //    fill(240);
-    //    rect(width/(frequencyBands.length+1)*(j+1), height/2, 50, size[j]);
-
-    //    fill(0);
-    //    text(round(size[j]), width/(frequencyBands.length+1)*(j+1), height/2-size[j]/2-5);
-    //    stroke(0);
-    //    strokeWeight(1);
-    //    fill(0);
-    //    line(width/(frequencyBands.length+1)*(j+1)-50, height/2-200, width/(frequencyBands.length+1)*(j+1)-10, height/2-200);
-    //    text("max: " + nf(max[j], 0, 2), width/(frequencyBands.length+1)*(j+1)-50, height/2-200-7);
-    //    text("frequencies: " + round(frequencyBands[j].freqStart) + "-" + round(frequencyBands[j].freqEnd), width/(frequencyBands.length+1)*(j+1)-50, height/2-200-27);
-    //    popStyle();
-    //  }
-    //}
   }
 }
 
 void exit() {
   //might not be necessary
   println("called exit()");
-  fAnalyzer.song.close();
+  if (fAnalyzer.song != null) fAnalyzer.song.close();
   fAnalyzer.minim.stop();
   super.exit();//let processing carry with it's regular exit routine
 }

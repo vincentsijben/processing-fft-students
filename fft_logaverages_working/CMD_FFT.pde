@@ -1,16 +1,23 @@
+//enum Input {
+//  MIC,
+//  LINEIN,
+//  FILE
+//}
+
 class FrequencyAnalyzer {
   int bands = 30;
   Minim minim;
-  AudioPlayer song;
-  AudioInput input;
+  AudioPlayer inputFile;
+  AudioInput inputMono;
+  AudioInput inputStereo;
+  AudioBuffer selectedInput;
+  String selectedInputString;
+
   FFT fft;
 
   float maxVal = 0.000001; //avoid NaN when using maxVal in map() in the first frame.
-
-  boolean enableMic = false;
-  boolean enableSong = false;
   boolean showInfo = false;
-  
+
 
   FrequencyAnalyzer(PApplet p) {
     this(p, 3);
@@ -25,17 +32,24 @@ class FrequencyAnalyzer {
     //fft = new FFT(input.bufferSize(), input.sampleRate());
 
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
+
+    //in MacOS getLineIn always refers to the selected AUDIO IN device in the sound panel
+    inputMono = minim.getLineIn(Minim.MONO);
+    inputStereo = minim.getLineIn(Minim.STEREO);
+
+    //default input is built-in microphone
+    selectedInput = inputMono.mix;
   }
 
-  void enableMicrophone() {
-    input = minim.getLineIn(Minim.MONO);
-    //input.enableMonitoring();
-    enableMic = true;
+  void setFile(String file) {
+    inputFile = minim.loadFile(file);
   }
-  void enableSong(String file) {
-    song = minim.loadFile(file);
-    song.play();
-    enableSong = true;
+
+  void setInput(String input) {
+    if (input == "MIC") selectedInput = inputMono.mix;
+    if (input == "LINEIN") selectedInput = inputStereo.mix;
+    if (input == "FILE") selectedInput = inputFile.mix;
+    selectedInputString = input;
   }
 
   //normalize the average for the given index
@@ -50,8 +64,7 @@ class FrequencyAnalyzer {
 
   void run() {
 
-    if (enableSong) fft.forward(song.mix);
-    if (enableMic) fft.forward(input.mix);
+    fft.forward(selectedInput);
 
     //determine max value to normalize all average values
     for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > maxVal) maxVal = fft.getAvg(i);
@@ -73,18 +86,27 @@ class FrequencyAnalyzer {
         textSize(8);
         text(i, xR + (width / bands / 2), yR-6);
       }
+      fill(255);
       textSize(25);
-      text(round(frameRate), 20, 20);
+      textAlign(LEFT);
+      text(round(frameRate), 20, 30);
+      textAlign(CENTER);
+      text("maxVal: " + round(maxVal), width/2, 30);
+      textAlign(LEFT);
+      String s = "selected input: " + selectedInputString;
+      text(s, width-textWidth(s)-10, 30);
+      String mon = "off";
+      if ( inputMono.isMonitoring() || inputStereo.isMonitoring() ) mon = "on";
+      text("monitoring: " + mon, width-textWidth(s)-10, 60);
       popStyle();
     }
-
   }
 }
 
 void exit() {
   //might not be necessary
   println("called exit()");
-  if (fAnalyzer.song != null) fAnalyzer.song.close();
+  if (fAnalyzer.inputFile != null) fAnalyzer.inputFile.close();
   fAnalyzer.minim.stop();
   super.exit();//let processing carry with it's regular exit routine
 }

@@ -2,6 +2,10 @@
 see comment on https://stackoverflow.com/questions/40050731/how-to-make-two-fft-objects-for-the-left-and-right-channel-with-the-minim-librar
  todo: check https://stackoverflow.com/questions/20408388/how-to-filter-fft-data-for-audio-visualisation
  todo: check https://www.ee.columbia.edu/~dpwe/e4896/index.html
+ 
+ problems with minim and audio input: https://code.compartmental.net/minim/audioinput_class_audioinput.html
+ //input.setPan(1); //https://code.compartmental.net/minim/audioinput_method_shiftpan.html
+ todo: om de x seconden maxVal resetten
  */
 import ddf.minim.*;
 import ddf.minim.analysis.*;
@@ -11,6 +15,7 @@ FrequencyAnalyzer fAnalyzer;
 PGraphics pg;
 ArrayList<Circle> circles = new ArrayList<Circle>();
 
+
 void setup() {
 
   //fullScreen();
@@ -18,10 +23,13 @@ void setup() {
 
   fAnalyzer = new FrequencyAnalyzer(this);
   //fAnalyzer = new FrequencyAnalyzer(this, 10);
+  fAnalyzer.setInput("LINEIN"); //"MIC", "LINEIN" or "FILE"
+  fAnalyzer.setFile("assets/hot-coffee.mp3");
+  fAnalyzer.inputFile.play();
   fAnalyzer.showInfo = true;
-  fAnalyzer.enableSong("assets/hot-coffee.mp3"); //if mic is enabled, it will overwrite the song.mix but will pick up the audio through the mic (less accurate)
-  fAnalyzer.enableMicrophone();
   
+
+
   pg = createGraphics(width, height);
   for (int i = 0; i < fAnalyzer.bands; i++) {
     circles.add(new Circle(i));
@@ -30,9 +38,9 @@ void setup() {
 
 
 void draw() {
-  
+
   drawCircles();
- 
+
   stroke(200);
   strokeWeight(5);
   noFill();
@@ -40,19 +48,18 @@ void draw() {
   if (fAnalyzer.fft.getAvg(10)>40) {
     circle(width/4, height-100, 100);
   }
-  
+
   // get the normalized value for band 11:
   if (fAnalyzer.getAvg(10)>0.5) {
     circle(width/2, height-100, 100);
   }
-  
+
   // get the normalized value for band 5 using 20 as the max mapped value:
-  if (fAnalyzer.getAvg(4,20)>0.5) {
+  if (fAnalyzer.getAvg(4, 20)>0.5) {
     circle(width/4*3, height-100, 100);
   }
-  
-  fAnalyzer.run();
 
+  fAnalyzer.run();
 }
 
 void drawCircles() {
@@ -71,10 +78,43 @@ void drawCircles() {
     pg.rotate(radians(c.r));
     pg.circle(c.x, c.y, lerp(0, 100, fAnalyzer.getAvg(c.index)));
     pg.popMatrix();
-    
+
     c.r+=c.rSpeed;
   }
 
   pg.endDraw();
   image(pg, 0, 0);
+}
+boolean pressed1 = false;
+boolean pressed2 = false;
+boolean pressed3 = false;
+boolean pressed4 = false;
+void keyPressed() {
+  if (key == '1') {
+    fAnalyzer.setInput("FILE");
+    fAnalyzer.maxVal = 0.000001;
+    fAnalyzer.inputFile.unmute();
+  }
+  if (key == '2') {
+    fAnalyzer.setInput("MIC");
+    fAnalyzer.maxVal = 0.000001;
+    fAnalyzer.inputFile.mute();
+  }
+  if (key == '3') {
+    fAnalyzer.setInput("LINEIN");
+    fAnalyzer.maxVal = 0.000001;
+    fAnalyzer.inputFile.mute();
+  }
+  if (key == '4') {
+    pressed4 = !pressed4;
+    if (pressed4) {
+      fAnalyzer.inputMono.enableMonitoring();
+      fAnalyzer.inputStereo.enableMonitoring();
+    }
+    else {
+      fAnalyzer.inputMono.disableMonitoring();
+      fAnalyzer.inputStereo.disableMonitoring();
+    }
+  }
+  //println(pressed1,pressed2,pressed3,pressed4);
 }

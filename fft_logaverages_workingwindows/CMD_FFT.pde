@@ -1,73 +1,97 @@
-//enum Input {
-//  MIC,
-//  LINEIN,
-//  FILE
-//}
-
 class FrequencyAnalyzer {
+
+  // myParent is a reference to the parent sketch
+  PApplet myParent;
+
+
   int bands = 30;
   Minim minim;
   AudioPlayer inputFile;
-  AudioInput inputMono;
-  AudioInput inputStereo;
+  AudioInput inputLineIn;
   AudioBuffer selectedInput;
   String selectedInputString;
+  boolean enableKeyPresses = false;
+  // we need this var because when assigning a new getLineIn to inputLineIn always disconnects the monitoring
+  boolean isMonitoring = false;
 
   FFT fft;
 
   float maxVal = 0.000001; //avoid NaN when using maxVal in map() in the first frame.
   boolean showInfo = false;
-PApplet main;
 
   FrequencyAnalyzer(PApplet p) {
     this(p, 3);
   }
 
   FrequencyAnalyzer(PApplet p, int bandsPerOctave) {
-main = p;
+    myParent = p;
     bands = bandsPerOctave * 10;
     minim = new Minim(p);
     //minim.debugOn();
     //in MacOS getLineIn always refers to the selected AUDIO IN device in the sound panel
 
+    //default input
+    inputLineIn = minim.getLineIn(Minim.MONO);
+    selectedInput = inputLineIn.mix;
+    selectedInputString = "MONO";
 
-    fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
-    //fft = new FFT(inputStereo.bufferSize(), inputStereo.sampleRate());
-    //fft = new FFT(inputMono.bufferSize(), inputMono.sampleRate());
-
+    fft = new FFT(inputLineIn.bufferSize(), inputLineIn.sampleRate());
+    //fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
+  }
 
-
-
-    //default input is built-in microphone
-    //selectedInput = inputMono.mix;
-    //selectedInput = inputStereo.mix;
+  public void enableKeyPresses() {
+    enableKeyPresses = true;
   }
 
   void setFile(String file) {
     inputFile = minim.loadFile(file);
+    inputFile.play();
+    inputFile.mute();
   }
 
-  void setInput(String input) {
-    if (input == "MIC") {
-      if (inputMono != null) inputMono.close();
-      //minim.stop();
-      inputMono = minim.getLineIn(Minim.MONO);
-      //inputMono.enableMonitoring();
-      selectedInput = inputMono.mix;
+  void toggleMuteOrMonitoring() {
+    if (selectedInputString=="FILE") {
+      if (inputFile != null) {
+        if (inputFile.isMuted()) inputFile.unmute();
+        else inputFile.mute();
+      }
+    } else {
+      if (inputLineIn.isMonitoring()) inputLineIn.disableMonitoring();
+      else inputLineIn.enableMonitoring();
     }
-    if (input == "LINEIN") {
-      if (inputMono != null) inputMono.close();
-      //minim.stop();
-      inputMono = minim.getLineIn(Minim.STEREO);
-      //inputStereo.enableMonitoring();
-      selectedInput = inputMono.mix;
-    }
-    if (input == "FILE") {
-      selectedInput = inputFile.mix;
-    selectedInputString = input;
+  }
 
+
+  void setInput(String i) {
+
+    //always close the input. After testing in Windows, I couldn't get multiple input variables running at the same time
+    //monitoring of inputLineIn is always disabled when calling setInput (because I assign a new getLineIn and the default is disabled monitoring)
+    inputLineIn.close();
+    //always mute the playing file, unmute it only when user chooses FILE input
+    inputFile.mute();
+
+    if (i == "MONO") {
+      inputLineIn = minim.getLineIn(Minim.MONO);
+      selectedInput = inputLineIn.mix;
     }
+    if (i == "STEREO") {
+      inputLineIn = minim.getLineIn(Minim.STEREO);
+      selectedInput = inputLineIn.mix;
+    }
+    if (i == "FILE") {
+      if (inputFile == null) {
+        println("file not enabled, reverting back to MONO");
+        setInput("MONO");
+        return;
+      } else {
+        selectedInput = inputFile.mix;
+        inputFile.unmute();
+      }
+    }
+    //reset the maxVal after each input switch
+    fAnalyzer.maxVal = 0.000001;
+    selectedInputString = i;
   }
 
   //normalize the average for the given index
@@ -87,6 +111,13 @@ main = p;
     //determine max value to normalize all average values
     for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > maxVal) maxVal = fft.getAvg(i);
 
+
+
+    checkKeyPress();
+    showInfo();
+  }
+
+  public void showInfo() {
     if (showInfo) {
       pushStyle();
       fill(200, 127);
@@ -113,10 +144,25 @@ main = p;
       textAlign(LEFT);
       String s = "selected input: " + selectedInputString;
       text(s, width-textWidth(s)-10, 30);
-      String mon = "off";
-      //if ( inputMono.isMonitoring() || inputStereo.isMonitoring() ) mon = "on";
-      text("monitoring: " + mon, width-textWidth(s)-10, 60);
+      if (selectedInputString == "FILE" && inputFile != null) {
+        text("muted: " + inputFile.isMuted(), width-textWidth(s)-10, 60);
+      } else {
+        String mon = "off";
+        if ( inputLineIn.isMonitoring()) mon = "on";
+        text("monitoring: " + mon, width-textWidth(s)-10, 60);
+      }
+
       popStyle();
+    }
+  }
+
+  void checkKeyPress() {
+    if (enableKeyPresses && myParent.keyPressed) {
+      myParent.keyPressed = false; //don't allow the key to be 'longpressed' immediately
+      if (myParent.key == '1') fAnalyzer.setInput("FILE");
+      if (myParent.key == '2') fAnalyzer.setInput("MONO");
+      if (myParent.key == '3') fAnalyzer.setInput("STEREO");
+      if (myParent.key == '4') fAnalyzer.toggleMuteOrMonitoring();
     }
   }
 }

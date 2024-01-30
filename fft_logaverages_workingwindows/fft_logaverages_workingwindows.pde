@@ -23,13 +23,11 @@ void setup() {
 
   fAnalyzer = new FrequencyAnalyzer(this);
   //fAnalyzer = new FrequencyAnalyzer(this, 10);
-  fAnalyzer.setInput("MIC"); //"MIC", "LINEIN" or "FILE"
   fAnalyzer.setFile("assets/hot-coffee.mp3");
-  fAnalyzer.inputFile.play();
+  fAnalyzer.setInput("FILE"); //"MONO", "STEREO" or "FILE"
   fAnalyzer.showInfo = true;
+  fAnalyzer.enableKeyPresses();
   
-
-
   pg = createGraphics(width, height);
   for (int i = 0; i < fAnalyzer.bands; i++) {
     circles.add(new Circle(i));
@@ -84,37 +82,4 @@ void drawCircles() {
 
   pg.endDraw();
   image(pg, 0, 0);
-}
-boolean pressed1 = false;
-boolean pressed2 = false;
-boolean pressed3 = false;
-boolean pressed4 = false;
-void keyPressed() {
-  if (key == '1') {
-    fAnalyzer.setInput("FILE");
-    fAnalyzer.maxVal = 0.000001;
-    fAnalyzer.inputFile.unmute();
-  }
-  if (key == '2') {
-    fAnalyzer.setInput("MIC");
-    fAnalyzer.maxVal = 0.000001;
-    fAnalyzer.inputFile.mute();
-  }
-  if (key == '3') {
-    fAnalyzer.setInput("LINEIN");
-    fAnalyzer.maxVal = 0.000001;
-    fAnalyzer.inputFile.mute();
-  }
-  if (key == '4') {
-    pressed4 = !pressed4;
-    if (pressed4) {
-      fAnalyzer.inputMono.enableMonitoring();
-      fAnalyzer.inputStereo.enableMonitoring();
-    }
-    else {
-      fAnalyzer.inputMono.disableMonitoring();
-      fAnalyzer.inputStereo.disableMonitoring();
-    }
-  }
-  //println(pressed1,pressed2,pressed3,pressed4);
 }

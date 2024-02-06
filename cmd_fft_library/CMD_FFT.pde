@@ -24,7 +24,7 @@ public class FrequencyAnalyzer {
     this.parent = parent;
     bands = bandsPerOctave * 10;
     minim = new Minim(parent);
-    overlay = parent.createGraphics(parent.width, parent.height);
+    overlay = parent.createGraphics(parent.width, 100);
     parent.registerMethod("draw", this);
     parent.registerMethod("dispose", this);
 
@@ -38,55 +38,6 @@ public class FrequencyAnalyzer {
     //fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
   }
-
-
-
-  public void keyEvent(KeyEvent event) {
-    // Process the event.type to determine if it's a PRESS, RELEASE, or TYPED event
-    // Removed KeyEvent.TYPE because p2d or p3d doesn't register this
-    if (event.getAction() == KeyEvent.PRESS) {
-      this.onKeyPress(event);
-    } else if (event.getAction() == KeyEvent.RELEASE) {
-      this.onKeyRelease(event);
-    }
-  }
-
-  private void onKeyPress(KeyEvent event) {
-
-    if (event.isControlDown()) {
-
-      //handle long press events, only works in default renderer, not in P2D or P3D
-      if (event.getKey() == '0' ) println("CTRL+0 is longpressed");
-
-      // handle single press events
-      if (event.getKey() == '1' && !keyPressedActionTaken) {
-        this.setInput("FILE");
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
-      }
-      if (event.getKey() == '2'  && !keyPressedActionTaken) {
-        this.setInput("MONO");
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
-      }
-      if (event.getKey() == '3'  && !keyPressedActionTaken) {
-        this.setInput("STEREO");
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
-      }
-      if (event.getKey() == '4' && !keyPressedActionTaken) {
-        this.toggleMuteOrMonitoring();
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
-      }
-      if (event.getKeyCode() == 'I' && !keyPressedActionTaken) {
-        this.showInfo = !this.showInfo;
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
-      }
-    }
-  }
-
-  private void onKeyRelease(KeyEvent event) {
-    // Reset the flag when the key is released, allowing for the action to be taken on the next key press
-    keyPressedActionTaken = false;
-  }
-
 
   public void enableKeyPresses() {
     this.parent.registerMethod("keyEvent", this);
@@ -164,19 +115,19 @@ public class FrequencyAnalyzer {
       overlay.beginDraw();
       overlay.fill(200, 127);
       overlay.noStroke();
-      overlay.rect(0, 0, this.parent.width, 100);
+      overlay.rect(0, 0, overlay.width, overlay.height);
       for (int i = 0; i < this.bands; i++) {
-        float xR = (i * this.parent.width) / bands;
+        float xR = (i * overlay.width) / bands;
         float yR = 100;
 
         overlay.fill(255);
-        overlay.rect(xR, yR, this.parent.width / bands, lerp(0, -100, this.getAvg(i)));
+        overlay.rect(xR, yR, overlay.width / bands, lerp(0, -100, this.getAvg(i)));
         overlay.fill(255, 0, 0);
         overlay.textAlign(CENTER, CENTER);
         overlay.textSize(14);
-        overlay.text(round(lerp(0, maxVal, this.getAvg(i))), xR + (this.parent.width / bands / 2), yR - 20);
+        overlay.text(round(lerp(0, maxVal, this.getAvg(i))), xR + (overlay.width / bands / 2), yR - 20);
         overlay.textSize(8);
-        overlay.text(i, xR + (this.parent.width / bands / 2), yR-6);
+        overlay.text(i, xR + (overlay.width / bands / 2), yR-6);
       }
       overlay.fill(255);
       overlay.textSize(25);
@@ -186,17 +137,55 @@ public class FrequencyAnalyzer {
       overlay.text("maxVal: " + round(maxVal), this.parent.width/2, 30);
       overlay.textAlign(LEFT);
       String s = "selected input: " + selectedInputString;
-      overlay.text(s, this.parent.width-overlay.textWidth(s)-10, 30);
-      if (selectedInputString == "FILE" && inputFile != null) {
-        overlay.text("muted: " + inputFile.isMuted(), this.parent.width-overlay.textWidth(s)-10, 60);
-      } else {
-        String mon = "off";
-        if ( inputLineIn.isMonitoring()) mon = "on";
-        overlay.text("monitoring: " + mon, this.parent.width-overlay.textWidth(s)-10, 60);
-      }
+      float posX = overlay.width-overlay.textWidth(s)-10;
+      overlay.text(s, posX, 30);
+      if (selectedInputString == "FILE" && inputFile != null) overlay.text("muted: " + inputFile.isMuted(), posX, 60);
+      else overlay.text("monitoring: " + (inputLineIn.isMonitoring() ? "on": "off"), posX, 60);
       overlay.endDraw();
       image(overlay, 0, 0); // Draw the overlay onto the main canvas
     }
+  }
+
+  public void keyEvent(KeyEvent event) {
+    // Removed KeyEvent.TYPE because p2d or p3d doesn't register this
+    if (event.getAction() == KeyEvent.PRESS) this.onKeyPress(event);
+    else if (event.getAction() == KeyEvent.RELEASE) this.onKeyRelease(event);
+  }
+
+  private void onKeyPress(KeyEvent event) {
+
+    if (event.isControlDown()) {
+
+      //handle long press events, only works in default renderer, not in P2D or P3D
+      if (event.getKey() == '0' ) println("CTRL+0 is longpressed");
+
+      // handle single press events
+      if (event.getKey() == '1' && !keyPressedActionTaken) {
+        this.setInput("FILE");
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKey() == '2'  && !keyPressedActionTaken) {
+        this.setInput("MONO");
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKey() == '3'  && !keyPressedActionTaken) {
+        this.setInput("STEREO");
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKeyCode() == 'M' && !keyPressedActionTaken) {
+        this.toggleMuteOrMonitoring();
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKeyCode() == 'I' && !keyPressedActionTaken) {
+        this.showInfo = !this.showInfo;
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+    }
+  }
+
+  private void onKeyRelease(KeyEvent event) {
+    // Reset the flag when the key is released, allowing for the action to be taken on the next key press
+    keyPressedActionTaken = false;
   }
 
   public void dispose() {

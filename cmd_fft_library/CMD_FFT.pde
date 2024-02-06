@@ -1,7 +1,8 @@
-class FrequencyAnalyzer {
+//https://github.com/benfry/processing4/wiki/Library-Basics
+public class FrequencyAnalyzer {
 
-  // myParent is a reference to the parent sketch
-  PApplet myParent;
+  // this.parent is a reference to the parent sketch
+  PApplet parent;
 
   Minim minim;
   AudioPlayer inputFile;
@@ -10,18 +11,22 @@ class FrequencyAnalyzer {
   FFT fft;
   int bands = 30;
   String selectedInputString;
-  boolean enableKeyPresses = false;
   boolean showInfo = false;
   float maxVal = 0.000001; //avoid NaN when using maxVal in map() in the first frame.
+  boolean keyPressedActionTaken = false; // Flag to track if the action for a key press has been taken
+  PGraphics overlay;
 
-  FrequencyAnalyzer(PApplet p) {
-    this(p, 3);
+  FrequencyAnalyzer(PApplet parent) {
+    this(parent, 3);
   }
 
-  FrequencyAnalyzer(PApplet p, int bandsPerOctave) {
-    myParent = p;
+  FrequencyAnalyzer(PApplet parent, int bandsPerOctave) {
+    this.parent = parent;
     bands = bandsPerOctave * 10;
-    minim = new Minim(p);
+    minim = new Minim(parent);
+    overlay = parent.createGraphics(parent.width, parent.height);
+    parent.registerMethod("draw", this);
+    parent.registerMethod("dispose", this);
 
     //default input
     //in MacOS getLineIn always refers to the selected AUDIO IN device in the sound panel
@@ -34,8 +39,57 @@ class FrequencyAnalyzer {
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
   }
 
+
+
+  public void keyEvent(KeyEvent event) {
+    // Process the event.type to determine if it's a PRESS, RELEASE, or TYPED event
+    // Removed KeyEvent.TYPE because p2d or p3d doesn't register this
+    if (event.getAction() == KeyEvent.PRESS) {
+      this.onKeyPress(event);
+    } else if (event.getAction() == KeyEvent.RELEASE) {
+      this.onKeyRelease(event);
+    }
+  }
+
+  private void onKeyPress(KeyEvent event) {
+
+    if (event.isControlDown()) {
+
+      //handle long press events, only works in default renderer, not in P2D or P3D
+      if (event.getKey() == '0' ) println("CTRL+0 is longpressed");
+
+      // handle single press events
+      if (event.getKey() == '1' && !keyPressedActionTaken) {
+        this.setInput("FILE");
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKey() == '2'  && !keyPressedActionTaken) {
+        this.setInput("MONO");
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKey() == '3'  && !keyPressedActionTaken) {
+        this.setInput("STEREO");
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKey() == '4' && !keyPressedActionTaken) {
+        this.toggleMuteOrMonitoring();
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+      if (event.getKeyCode() == 'I' && !keyPressedActionTaken) {
+        this.showInfo = !this.showInfo;
+        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+      }
+    }
+  }
+
+  private void onKeyRelease(KeyEvent event) {
+    // Reset the flag when the key is released, allowing for the action to be taken on the next key press
+    keyPressedActionTaken = false;
+  }
+
+
   public void enableKeyPresses() {
-    enableKeyPresses = true;
+    this.parent.registerMethod("keyEvent", this);
   }
 
   void setFile(String file) {
@@ -63,7 +117,7 @@ class FrequencyAnalyzer {
     //monitoring of inputLineIn is always disabled when calling setInput (because I assign a new getLineIn and the default is disabled monitoring)
     inputLineIn.close();
     //always mute the playing file, unmute it only when user chooses FILE input
-    inputFile.mute();
+    if (inputFile != null) inputFile.mute();
 
     if (i == "MONO") {
       inputLineIn = minim.getLineIn(Minim.MONO);
@@ -103,66 +157,51 @@ class FrequencyAnalyzer {
     fft.forward(selectedInput);
     //determine max value to normalize all average values
     for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > maxVal) maxVal = fft.getAvg(i);
-
-    checkKeyPress();
-    showInfo();
   }
 
-  public void showInfo() {
+  public void draw() {
     if (showInfo) {
-      pushStyle();
-      fill(200, 127);
-      noStroke();
-      rect(0, 0, width, 100);
-      for (int i = 0; i < fAnalyzer.bands; i++) {
-        float xR = (i * width) / bands;
+      overlay.beginDraw();
+      overlay.fill(200, 127);
+      overlay.noStroke();
+      overlay.rect(0, 0, this.parent.width, 100);
+      for (int i = 0; i < this.bands; i++) {
+        float xR = (i * this.parent.width) / bands;
         float yR = 100;
 
-        fill(255);
-        rect(xR, yR, width / bands, lerp(0, -100, fAnalyzer.getAvg(i)));
-        fill(255, 0, 0);
-        textAlign(CENTER, CENTER);
-        textSize(14);
-        text(round(lerp(0, maxVal, fAnalyzer.getAvg(i))), xR + (width / bands / 2), yR - 20);
-        textSize(8);
-        text(i, xR + (width / bands / 2), yR-6);
+        overlay.fill(255);
+        overlay.rect(xR, yR, this.parent.width / bands, lerp(0, -100, this.getAvg(i)));
+        overlay.fill(255, 0, 0);
+        overlay.textAlign(CENTER, CENTER);
+        overlay.textSize(14);
+        overlay.text(round(lerp(0, maxVal, this.getAvg(i))), xR + (this.parent.width / bands / 2), yR - 20);
+        overlay.textSize(8);
+        overlay.text(i, xR + (this.parent.width / bands / 2), yR-6);
       }
-      fill(255);
-      textSize(25);
-      textAlign(LEFT);
-      text(round(frameRate), 20, 30);
-      textAlign(CENTER);
-      text("maxVal: " + round(maxVal), width/2, 30);
-      textAlign(LEFT);
+      overlay.fill(255);
+      overlay.textSize(25);
+      overlay.textAlign(LEFT);
+      overlay.text(round(this.parent.frameRate), 20, 30);
+      overlay.textAlign(CENTER);
+      overlay.text("maxVal: " + round(maxVal), this.parent.width/2, 30);
+      overlay.textAlign(LEFT);
       String s = "selected input: " + selectedInputString;
-      text(s, width-textWidth(s)-10, 30);
+      overlay.text(s, this.parent.width-overlay.textWidth(s)-10, 30);
       if (selectedInputString == "FILE" && inputFile != null) {
-        text("muted: " + inputFile.isMuted(), width-textWidth(s)-10, 60);
+        overlay.text("muted: " + inputFile.isMuted(), this.parent.width-overlay.textWidth(s)-10, 60);
       } else {
         String mon = "off";
         if ( inputLineIn.isMonitoring()) mon = "on";
-        text("monitoring: " + mon, width-textWidth(s)-10, 60);
+        overlay.text("monitoring: " + mon, this.parent.width-overlay.textWidth(s)-10, 60);
       }
-
-      popStyle();
+      overlay.endDraw();
+      image(overlay, 0, 0); // Draw the overlay onto the main canvas
     }
   }
 
-  void checkKeyPress() {
-    if (enableKeyPresses && myParent.keyPressed) {
-      myParent.keyPressed = false; //don't allow the key to be 'longpressed' immediately
-      if (myParent.key == '1') fAnalyzer.setInput("FILE");
-      if (myParent.key == '2') fAnalyzer.setInput("MONO");
-      if (myParent.key == '3') fAnalyzer.setInput("STEREO");
-      if (myParent.key == '4') fAnalyzer.toggleMuteOrMonitoring();
-    }
+  public void dispose() {
+    //might not be necessary, but just in case
+    if (this.inputFile != null) this.inputFile.close();
+    this.minim.stop();
   }
-}
-
-void exit() {
-  //might not be necessary
-  println("called exit()");
-  if (fAnalyzer.inputFile != null) fAnalyzer.inputFile.close();
-  fAnalyzer.minim.stop();
-  super.exit();//let processing carry with it's regular exit routine
 }

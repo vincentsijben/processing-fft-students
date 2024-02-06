@@ -6,6 +6,8 @@ see comment on https://stackoverflow.com/questions/40050731/how-to-make-two-fft-
  problems with minim and audio input: https://code.compartmental.net/minim/audioinput_class_audioinput.html
  //input.setPan(1); //https://code.compartmental.net/minim/audioinput_method_shiftpan.html
  todo: om de x seconden maxVal resetten
+ todo: lerp smoothing inzetten voor sensor values 
+ todo: arduino potmeter values gebruiken voor aantal objecten, maar pas doorgeven als gestopt met draaien.
  */
 import ddf.minim.*;
 import ddf.minim.analysis.*;
@@ -18,14 +20,15 @@ ArrayList<Circle> circles = new ArrayList<Circle>();
 
 void setup() {
 
-  fullScreen();
-  //size(700, 700);
+  //fullScreen();
+  size(900, 700);
 
   fAnalyzer = new FrequencyAnalyzer(this);
   //fAnalyzer = new FrequencyAnalyzer(this, 10);
   fAnalyzer.setFile("assets/hot-coffee.mp3");
   fAnalyzer.setInput("FILE"); //"MONO", "STEREO" or "FILE"
-  fAnalyzer.showInfo = true;
+  //fAnalyzer.setInput("MONO"); //"MONO", "STEREO" or "FILE"
+  //fAnalyzer.showInfo = true;
   fAnalyzer.enableKeyPresses();
   
   pg = createGraphics(width, height);

@@ -22,42 +22,43 @@ public class FrequencyAnalyzer {
 
   FrequencyAnalyzer(PApplet parent, int bandsPerOctave) {
     this.parent = parent;
-    bands = bandsPerOctave * 10;
-    minim = new Minim(parent);
-    overlay = parent.createGraphics(parent.width, 100);
+    this.bands = bandsPerOctave * 10;
+    this.minim = new Minim(parent);
+    this.overlay = parent.createGraphics(parent.width, 100);
     parent.registerMethod("draw", this);
     parent.registerMethod("dispose", this);
 
     //default input
     //in MacOS getLineIn always refers to the selected AUDIO IN device in the sound panel
-    inputLineIn = minim.getLineIn(Minim.MONO);
-    selectedInput = inputLineIn.mix;
-    selectedInputString = "MONO";
+    //tested in Sonoma 14.2
 
-    fft = new FFT(inputLineIn.bufferSize(), inputLineIn.sampleRate());
+    this.inputLineIn = minim.getLineIn(Minim.MONO);
+    this.selectedInput = inputLineIn.mix;
+    this.selectedInputString = "MONO";
+
+    fft = new FFT(this.inputLineIn.bufferSize(), this.inputLineIn.sampleRate());
     //fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
+   
   }
 
-  public void enableKeyPresses() {
-    this.parent.registerMethod("keyEvent", this);
-  }
+
 
   void setFile(String file) {
-    inputFile = minim.loadFile(file);
-    inputFile.play();
-    inputFile.mute();
+    this.inputFile = minim.loadFile(file);
+    this.inputFile.play();
+    this.inputFile.mute();
   }
 
   void toggleMuteOrMonitoring() {
-    if (selectedInputString=="FILE") {
-      if (inputFile != null) {
-        if (inputFile.isMuted()) inputFile.unmute();
-        else inputFile.mute();
+    if (this.selectedInputString=="FILE") {
+      if (this.inputFile != null) {
+        if (this.inputFile.isMuted()) this.inputFile.unmute();
+        else this.inputFile.mute();
       }
     } else {
-      if (inputLineIn.isMonitoring()) inputLineIn.disableMonitoring();
-      else inputLineIn.enableMonitoring();
+      if (this.inputLineIn.isMonitoring()) this.inputLineIn.disableMonitoring();
+      else this.inputLineIn.enableMonitoring();
     }
   }
 
@@ -66,36 +67,36 @@ public class FrequencyAnalyzer {
 
     //always close the input. After testing in Windows, I couldn't get multiple input variables running at the same time
     //monitoring of inputLineIn is always disabled when calling setInput (because I assign a new getLineIn and the default is disabled monitoring)
-    inputLineIn.close();
+    this.inputLineIn.close();
     //always mute the playing file, unmute it only when user chooses FILE input
-    if (inputFile != null) inputFile.mute();
+    if (this.inputFile != null) this.inputFile.mute();
 
     if (i == "MONO") {
-      inputLineIn = minim.getLineIn(Minim.MONO);
-      selectedInput = inputLineIn.mix;
+      this.inputLineIn = minim.getLineIn(Minim.MONO);
+      this.selectedInput = this.inputLineIn.mix;
     }
     if (i == "STEREO") {
-      inputLineIn = minim.getLineIn(Minim.STEREO);
-      selectedInput = inputLineIn.mix;
+      this.inputLineIn = minim.getLineIn(Minim.STEREO);
+      this.selectedInput = this.inputLineIn.mix;
     }
     if (i == "FILE") {
-      if (inputFile == null) {
+      if (this.inputFile == null) {
         println("no call to setFile(), reverting back to MONO");
-        setInput("MONO");
+        this.setInput("MONO");
         return;
       } else {
-        selectedInput = inputFile.mix;
-        inputFile.unmute();
+        this.selectedInput = this.inputFile.mix;
+        this.inputFile.unmute();
       }
     }
     //reset the maxVal after each input switch
-    fAnalyzer.maxVal = 0.000001;
-    selectedInputString = i;
+    this.maxVal = 0.000001;
+    this.selectedInputString = i;
   }
 
   //normalize the average for the given index
   float getAvg(int index) {
-    return map(fft.getAvg(index), 0, maxVal, 0, 1);
+    return map(fft.getAvg(index), 0, this.maxVal, 0, 1);
   }
 
   //set a new max value for the given index and constrain the result between 0 and 1
@@ -105,9 +106,9 @@ public class FrequencyAnalyzer {
 
   void run() {
 
-    fft.forward(selectedInput);
+    fft.forward(this.selectedInput);
     //determine max value to normalize all average values
-    for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > maxVal) maxVal = fft.getAvg(i);
+    for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > this.maxVal) this.maxVal = fft.getAvg(i);
   }
 
   public void draw() {
@@ -146,8 +147,12 @@ public class FrequencyAnalyzer {
     }
   }
 
+  public void enableKeyPresses() {
+    this.parent.registerMethod("keyEvent", this);
+  }
+
   public void keyEvent(KeyEvent event) {
-    // Removed KeyEvent.TYPE because p2d or p3d doesn't register this
+    // Removed KeyEvent.TYPE because p2d or p3d don't register TYPE
     if (event.getAction() == KeyEvent.PRESS) this.onKeyPress(event);
     else if (event.getAction() == KeyEvent.RELEASE) this.onKeyRelease(event);
   }
@@ -160,32 +165,32 @@ public class FrequencyAnalyzer {
       if (event.getKey() == '0' ) println("CTRL+0 is longpressed");
 
       // handle single press events
-      if (event.getKey() == '1' && !keyPressedActionTaken) {
+      if (event.getKey() == '1' && !this.keyPressedActionTaken) {
         this.setInput("FILE");
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+        this.keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
       }
-      if (event.getKey() == '2'  && !keyPressedActionTaken) {
+      if (event.getKey() == '2'  && !this.keyPressedActionTaken) {
         this.setInput("MONO");
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+        this.keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
       }
-      if (event.getKey() == '3'  && !keyPressedActionTaken) {
+      if (event.getKey() == '3'  && !this.keyPressedActionTaken) {
         this.setInput("STEREO");
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+        this.keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
       }
-      if (event.getKeyCode() == 'M' && !keyPressedActionTaken) {
+      if (event.getKeyCode() == 'M' && !this.keyPressedActionTaken) {
         this.toggleMuteOrMonitoring();
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+        this.keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
       }
-      if (event.getKeyCode() == 'I' && !keyPressedActionTaken) {
+      if (event.getKeyCode() == 'I' && !this.keyPressedActionTaken) {
         this.showInfo = !this.showInfo;
-        keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
+        this.keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
       }
     }
   }
 
   private void onKeyRelease(KeyEvent event) {
     // Reset the flag when the key is released, allowing for the action to be taken on the next key press
-    keyPressedActionTaken = false;
+    this.keyPressedActionTaken = false;
   }
 
   public void dispose() {

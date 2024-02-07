@@ -13,28 +13,33 @@ import ddf.minim.*;
 import ddf.minim.analysis.*;
 
 FrequencyAnalyzer fAnalyzer;
-
 PGraphics pg;
 ArrayList<Circle> circles = new ArrayList<Circle>();
 
 
 void setup() {
+  
+  System.out.println("Your OS name -> " + System.getProperty("os.name"));
+  System.out.println("Your OS version -> " + System.getProperty("os.version"));
+  System.out.println("Your OS Architecture -> " + System.getProperty("os.arch"));
 
   //fullScreen();
   size(900, 700);
 
   fAnalyzer = new FrequencyAnalyzer(this);
+  
   //fAnalyzer = new FrequencyAnalyzer(this, 10);
   fAnalyzer.setFile("assets/hot-coffee.mp3");
   fAnalyzer.setInput("FILE"); //"MONO", "STEREO" or "FILE"
   //fAnalyzer.setInput("MONO"); //"MONO", "STEREO" or "FILE"
-  //fAnalyzer.showInfo = true;
+  fAnalyzer.showInfo = true;
   fAnalyzer.enableKeyPresses();
   
   pg = createGraphics(width, height);
   for (int i = 0; i < fAnalyzer.bands; i++) {
     circles.add(new Circle(i));
   }
+  
 }
 
 

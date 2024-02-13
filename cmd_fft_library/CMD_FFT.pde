@@ -1,4 +1,5 @@
 //https://github.com/benfry/processing4/wiki/Library-Basics
+
 public class FrequencyAnalyzer {
 
   // this.parent is a reference to the parent sketch
@@ -27,6 +28,7 @@ public class FrequencyAnalyzer {
     this.minim = new Minim(parent);
     this.overlay = parent.createGraphics(parent.width, 100);
     parent.registerMethod("draw", this);
+    parent.registerMethod("post", this);
     parent.registerMethod("dispose", this);
 
     //default input
@@ -40,6 +42,7 @@ public class FrequencyAnalyzer {
     fft = new FFT(this.inputLineIn.bufferSize(), this.inputLineIn.sampleRate());
     //fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
+    
   }
 
 
@@ -111,46 +114,39 @@ public class FrequencyAnalyzer {
     return constrain(map(fft.getAvg(index), 0, max, 0, 1), 0, 1);
   }
 
-  void run() {
-
-    fft.forward(this.selectedInput);
-    //determine max value to normalize all average values
-    for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > this.maxVal) this.maxVal = fft.getAvg(i);
-  }
-
   public void draw() {
     if (this.showInfo) {
-      overlay.beginDraw();
-      overlay.fill(200, 127);
-      overlay.noStroke();
-      overlay.rect(0, 0, overlay.width, overlay.height);
+      this.overlay.beginDraw();
+      this.overlay.fill(200, 127);
+      this.overlay.noStroke();
+      this.overlay.rect(0, 0, this.overlay.width, this.overlay.height);
       for (int i = 0; i < this.bands; i++) {
-        float xR = (i * overlay.width) / bands;
+        float xR = (i * this.overlay.width) / this.bands;
         float yR = 100;
 
-        overlay.fill(255);
-        overlay.rect(xR, yR, overlay.width / bands, lerp(0, -100, this.getAvg(i)));
-        overlay.fill(255, 0, 0);
-        overlay.textAlign(CENTER, CENTER);
-        overlay.textSize(14);
-        overlay.text(round(lerp(0, maxVal, this.getAvg(i))), xR + (overlay.width / bands / 2), yR - 20);
-        overlay.textSize(8);
-        overlay.text(i, xR + (overlay.width / bands / 2), yR-6);
+        this.overlay.fill(255);
+        this.overlay.rect(xR, yR, this.overlay.width / this.bands, PApplet.lerp(0, -100, this.getAvg(i)));
+        this.overlay.fill(255, 0, 0);
+        this.overlay.textAlign(CENTER, CENTER);
+        this.overlay.textSize(14);
+        this.overlay.text(round(lerp(0, maxVal, this.getAvg(i))), xR + (this.overlay.width / this.bands / 2), yR - 20);
+        this.overlay.textSize(8);
+        this.overlay.text(i, xR + (this.overlay.width / this.bands / 2), yR-6);
       }
-      overlay.fill(255);
-      overlay.textSize(25);
-      overlay.textAlign(LEFT);
-      overlay.text(round(this.parent.frameRate), 20, 30);
-      overlay.textAlign(CENTER);
-      overlay.text("maxVal: " + round(maxVal), this.parent.width/2, 30);
-      overlay.textAlign(LEFT);
+      this.overlay.fill(255);
+      this.overlay.textSize(25);
+      this.overlay.textAlign(LEFT);
+      this.overlay.text(round(this.parent.frameRate), 20, 30);
+      this.overlay.textAlign(CENTER);
+      this.overlay.text("maxVal: " + round(maxVal), this.parent.width/2, 30);
+      this.overlay.textAlign(LEFT);
       String s = "selected input: " + selectedInputString;
-      float posX = overlay.width-overlay.textWidth(s)-10;
-      overlay.text(s, posX, 30);
-      if (selectedInputString == "FILE" && inputFile != null) overlay.text("muted: " + inputFile.isMuted(), posX, 60);
-      else overlay.text("monitoring: " + (inputLineIn.isMonitoring() ? "on": "off"), posX, 60);
-      overlay.endDraw();
-      image(overlay, 0, 0); // Draw the overlay onto the main canvas
+      float posX = this.overlay.width-this.overlay.textWidth(s)-10;
+      this.overlay.text(s, posX, 30);
+      if (selectedInputString == "FILE" && inputFile != null) this.overlay.text("muted: " + inputFile.isMuted(), posX, 60);
+      else this.overlay.text("monitoring: " + (inputLineIn.isMonitoring() ? "on": "off"), posX, 60);
+      this.overlay.endDraw();
+      image(this.overlay, 0, 0); // Draw the overlay onto the main canvas
     }
   }
 
@@ -198,6 +194,15 @@ public class FrequencyAnalyzer {
   private void onKeyRelease(KeyEvent event) {
     // Reset the flag when the key is released, allowing for the action to be taken on the next key press
     this.keyPressedActionTaken = false;
+  }
+  
+  public void post(){
+    // https://github.com/benfry/processing4/wiki/Library-Basics
+    // you cant draw in post() but its perfect for the fft analysis:
+    fft.forward(this.selectedInput);
+    //determine max value to normalize all average values
+    for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > this.maxVal) this.maxVal = fft.getAvg(i);
+
   }
 
   void debug() {

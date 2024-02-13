@@ -5,9 +5,11 @@ see comment on https://stackoverflow.com/questions/40050731/how-to-make-two-fft-
  
  problems with minim and audio input: https://code.compartmental.net/minim/audioinput_class_audioinput.html
  //input.setPan(1); //https://code.compartmental.net/minim/audioinput_method_shiftpan.html
- todo: om de x seconden maxVal resetten
- todo: lerp smoothing inzetten voor sensor values 
+ question: om de x seconden maxVal resetten levert enorme spikes op (want opeens is de max 1, of 0.00001. Misschien de gebruiker zelf laten bepalen wanneer de resetMaxValue functie wordt aangeroepen? of enkel fAnalyzer.maxValue = 1;
+ todo: moet er 1 maxVal zijn voor totale frequencies, of per frequency band?
+ todo: lerp smoothing inzetten voor sensor values
  todo: arduino potmeter values gebruiken voor aantal objecten, maar pas doorgeven als gestopt met draaien.
+ todo: knop een aan switch maken, 1x drukken is aan, led aan, nog keer drukken is uit, led uit: mechanisme kunnen studenten zelf maken. er is nu een inputButtonsOnce die 1 frame true is als wordt gedrukt
  */
 import ddf.minim.*;
 import ddf.minim.analysis.*;
@@ -16,30 +18,51 @@ FrequencyAnalyzer fAnalyzer;
 PGraphics pg;
 ArrayList<Circle> circles = new ArrayList<Circle>();
 
+import processing.serial.*;
+import cc.arduino.*;
+Arduino arduino;
+boolean enableArduino = true;
+color col = 50;
+
+ArduinoControls ac;
 
 void setup() {
-  
-  System.out.println("Your OS name -> " + System.getProperty("os.name"));
-  System.out.println("Your OS version -> " + System.getProperty("os.version"));
-  System.out.println("Your OS Architecture -> " + System.getProperty("os.arch"));
+
+
 
   //fullScreen();
   size(900, 700);
 
   fAnalyzer = new FrequencyAnalyzer(this);
-  
+
   //fAnalyzer = new FrequencyAnalyzer(this, 10);
-  fAnalyzer.setFile("assets/hot-coffee.mp3");
-  fAnalyzer.setInput("FILE"); //"MONO", "STEREO" or "FILE"
-  //fAnalyzer.setInput("MONO"); //"MONO", "STEREO" or "FILE"
+  //fAnalyzer.setFile("assets/hot-coffee.mp3");
+  //fAnalyzer.setInput("FILE"); //"MONO", "STEREO" or "FILE"
+  fAnalyzer.setInput("MONO"); //"MONO", "STEREO" or "FILE"
   fAnalyzer.showInfo = true;
   fAnalyzer.enableKeyPresses();
-  
+  fAnalyzer.debug();
+
   pg = createGraphics(width, height);
   for (int i = 0; i < fAnalyzer.bands; i++) {
     circles.add(new Circle(i));
   }
-  
+  int[] digitalPortsUsed = { 6, 7 };
+  int[] analogPortsUsed = { 2, 5 };
+  ac = new ArduinoControls(this, digitalPortsUsed, analogPortsUsed);
+  ac.enableKeyPresses();
+  ac.showInfo = true;
+
+  if (enableArduino) {
+    println(Arduino.list());
+    arduino = new Arduino(this, Arduino.list()[2], 57600);
+    arduino.pinMode(8, Arduino.INPUT_PULLUP);
+    arduino.pinMode(7, Arduino.INPUT_PULLUP);
+    arduino.pinMode(6, Arduino.INPUT_PULLUP);
+    // delay the start of the draw loop so the Arduino is in the ready state
+    // (the first few frames, digitalRead returned incorrect values)
+    //delay(2000);
+  }
 }
 
 
@@ -66,11 +89,43 @@ void draw() {
   }
 
   fAnalyzer.run();
+  //ac.inputControls();
+  //println(ac.inputPotmeters[0], ac.inputButtons[0]);
+  //println(ac.inputPotmeters[0], ac.inputPotmetersSmooth[0]);
+  fill(255, 0, 0);
+  noStroke();
+
+//if (ac.getPushButton(0) && ac.getPushButton(1)) {
+// fill(0,0,255); 
+//}
+
+  ellipse(lerp(0, width, ac.getPotmeterSmooth(0)), height-100, 50, 50);
+  ellipse(map(ac.getPotmeterSmooth(1, 0.01), 0, 1, 0, width), height-50, 50, 50);
+
+//println(ac.inputButtons);
+
+  //if (ac.inputButtonsOnce[0]) {
+  //  background(0);
+  //}
+  if(ac.getPushButton(0)){
+  background(0);
+  }
+  //if (ac.inputButtons[1]) {
+  // background(255,0,0);
+  //}
+  if (ac.getPushButtonOnce(1)) {
+    background(255, 0, 0);
+  }
+  if (ac.getPushButtonOnce(0)) {
+    println("ojee");
+    col = color(255);
+  }
+
 }
 
 void drawCircles() {
   pg.beginDraw();
-  pg.fill(50, 30);
+  pg.fill(col, 30);
   pg.rect(0, 0, width, height);
   pg.translate(pg.width / 2, pg.height / 2);
   pg.strokeWeight(2);

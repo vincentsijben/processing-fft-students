@@ -13,6 +13,7 @@ public class FrequencyAnalyzer {
   String selectedInputString;
   boolean showInfo = false;
   float maxVal = 0.000001; //avoid NaN when using maxVal in map() in the first frame.
+  //float startTime = 0;
   boolean keyPressedActionTaken = false; // Flag to track if the action for a key press has been taken
   PGraphics overlay;
 
@@ -39,7 +40,6 @@ public class FrequencyAnalyzer {
     fft = new FFT(this.inputLineIn.bufferSize(), this.inputLineIn.sampleRate());
     //fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
-   
   }
 
 
@@ -62,11 +62,18 @@ public class FrequencyAnalyzer {
     }
   }
 
+  //void resetMaxValue(float duration) {
+  //  if (millis() - this.startTime > duration) {
+  //    this.maxVal = 1;
+  //    startTime = millis();
+  //  }
+  //}
+
 
   void setInput(String i) {
 
-    //always close the input. After testing in Windows, I couldn't get multiple input variables running at the same time
-    //monitoring of inputLineIn is always disabled when calling setInput (because I assign a new getLineIn and the default is disabled monitoring)
+    // Always close the input when changing inputs. After testing in Windows, I couldn't get multiple input variables running at the same time.
+    // Monitoring of inputLineIn is disabled by default when calling setInput again
     this.inputLineIn.close();
     //always mute the playing file, unmute it only when user chooses FILE input
     if (this.inputFile != null) this.inputFile.mute();
@@ -112,7 +119,7 @@ public class FrequencyAnalyzer {
   }
 
   public void draw() {
-    if (showInfo) {
+    if (this.showInfo) {
       overlay.beginDraw();
       overlay.fill(200, 127);
       overlay.noStroke();
@@ -191,6 +198,16 @@ public class FrequencyAnalyzer {
   private void onKeyRelease(KeyEvent event) {
     // Reset the flag when the key is released, allowing for the action to be taken on the next key press
     this.keyPressedActionTaken = false;
+  }
+
+  void debug() {
+    System.out.println("Your OS name -> " + System.getProperty("os.name"));
+    System.out.println("Your OS version -> " + System.getProperty("os.version"));
+    System.out.println("Your OS Architecture -> " + System.getProperty("os.arch"));
+    if (minim != null) {
+      println("MONO -> " + minim.getLineIn(Minim.MONO));
+      println("STEREO -> " + minim.getLineIn(Minim.STEREO));
+    }
   }
 
   public void dispose() {

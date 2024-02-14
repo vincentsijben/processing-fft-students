@@ -12,3 +12,27 @@ class Circle {
     index = i;
   }
 }
+
+void drawCircles() {
+  pg.beginDraw();
+  pg.fill(col, 30);
+  pg.rect(0, 0, width, height);
+  pg.translate(pg.width / 2, pg.height / 2);
+  pg.strokeWeight(2);
+  pg.noFill();
+
+  for (int i = 0; i < circles.size(); i++) {
+    Circle c = circles.get(i);
+
+    pg.pushMatrix();
+    pg.stroke(c.col);
+    pg.rotate(radians(c.r));
+    pg.circle(c.x, c.y, lerp(0, 100, fa.getAvg(c.index)));
+    pg.popMatrix();
+
+    c.r+=c.rSpeed;
+  }
+
+  pg.endDraw();
+  image(pg, 0, 0);
+}

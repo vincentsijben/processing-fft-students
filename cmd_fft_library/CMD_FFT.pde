@@ -12,11 +12,16 @@ public class FrequencyAnalyzer {
   FFT fft;
   int bands = 30;
   String selectedInputString;
-  boolean showInfo = false;
+  
+  Integer[] infoPanelLocation = {0, 0, 0, 0}; //x, y, w, h
+  boolean showInfoPanel = false;
+  char infoPanelKey = 'i';
+  
   float maxVal = 0.000001; //avoid NaN when using maxVal in map() in the first frame.
   //float startTime = 0;
   boolean keyPressedActionTaken = false; // Flag to track if the action for a key press has been taken
   PGraphics overlay;
+  boolean enableKeypress = false;
 
   FrequencyAnalyzer(PApplet parent) {
     this(parent, 3);
@@ -30,6 +35,7 @@ public class FrequencyAnalyzer {
     parent.registerMethod("draw", this);
     parent.registerMethod("post", this);
     parent.registerMethod("dispose", this);
+    parent.registerMethod("keyEvent", this);
 
     //default input
     //in MacOS getLineIn always refers to the selected AUDIO IN device in the sound panel
@@ -42,7 +48,6 @@ public class FrequencyAnalyzer {
     fft = new FFT(this.inputLineIn.bufferSize(), this.inputLineIn.sampleRate());
     //fft = new FFT(1024, 44100.0); //always 1024 and 44100.0??
     fft.logAverages(22, bandsPerOctave); // 3 results in 30 bands. 1 results in 10 etc.
-    
   }
 
 
@@ -115,7 +120,7 @@ public class FrequencyAnalyzer {
   }
 
   public void draw() {
-    if (this.showInfo) {
+    if (this.showInfoPanel) {
       this.overlay.beginDraw();
       this.overlay.fill(200, 127);
       this.overlay.noStroke();
@@ -150,14 +155,13 @@ public class FrequencyAnalyzer {
     }
   }
 
-  public void enableKeyPresses() {
-    this.parent.registerMethod("keyEvent", this);
-  }
 
   public void keyEvent(KeyEvent event) {
-    // Removed KeyEvent.TYPE because p2d or p3d don't register TYPE
-    if (event.getAction() == KeyEvent.PRESS) this.onKeyPress(event);
-    else if (event.getAction() == KeyEvent.RELEASE) this.onKeyRelease(event);
+    if (this.enableKeypress) {
+      // Removed KeyEvent.TYPE because p2d or p3d don't register TYPE
+      if (event.getAction() == KeyEvent.PRESS) this.onKeyPress(event);
+      else if (event.getAction() == KeyEvent.RELEASE) this.onKeyRelease(event);
+    }
   }
 
   private void onKeyPress(KeyEvent event) {
@@ -184,25 +188,26 @@ public class FrequencyAnalyzer {
         this.toggleMuteOrMonitoring();
         this.keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
       }
-      if (event.getKeyCode() == 'I' && !this.keyPressedActionTaken) {
-        this.showInfo = !this.showInfo;
+      
+    }
+    
+    if (event.getKey() == infoPanelKey && !this.keyPressedActionTaken) {
+        this.showInfoPanel = !this.showInfoPanel;
         this.keyPressedActionTaken = true; // Set the flag to true to avoid repeating the action
       }
-    }
   }
 
   private void onKeyRelease(KeyEvent event) {
     // Reset the flag when the key is released, allowing for the action to be taken on the next key press
     this.keyPressedActionTaken = false;
   }
-  
-  public void post(){
+
+  public void post() {
     // https://github.com/benfry/processing4/wiki/Library-Basics
     // you cant draw in post() but its perfect for the fft analysis:
     fft.forward(this.selectedInput);
     //determine max value to normalize all average values
     for (int i = 0; i < fft.avgSize(); i++) if (fft.getAvg(i) > this.maxVal) this.maxVal = fft.getAvg(i);
-
   }
 
   void debug() {

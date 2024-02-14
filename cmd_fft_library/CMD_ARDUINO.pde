@@ -7,8 +7,13 @@ import java.util.Collections;
 
 public class ArduinoControls {
 
+ 
+  
   // this.parent is a reference to the parent sketch
   PApplet parent;
+
+  Arduino arduino;
+  
 
   PGraphics overlay;
   int[] digitalPortsUsed;
@@ -28,7 +33,8 @@ public class ArduinoControls {
   boolean showInfo = false;
   boolean keyPressedActionTaken = false; // Flag to track if the action for a key press has been taken
 
-  ArduinoControls(PApplet parent, int[] digitalPorts, int[] analogPorts) {
+  ArduinoControls(PApplet parent, Arduino a, int[] digitalPorts, int[] analogPorts) {
+    this.arduino = a;
     this.digitalPortsUsed = digitalPorts;
     for (int i=0; i<digitalPorts.length; i++) {
       inputButtons.add(false);
@@ -48,44 +54,45 @@ public class ArduinoControls {
   }
 
   float getPotmeter(int index) {
-    if (enableArduino) inputPotmeters.set(index, arduino.analogRead(analogPortsUsed[index]));
-    // when disabled the inputPotmeters array will be mapped to mouseX while pressing q,w or e
-    return constrain(map(inputPotmeters.get(index), 0, 1023, 0, 1), 0, 1);
+    return getPotmeter(index, 1.0);
   }
 
-  float getPotmeterSmooth(int index, float smoothness) {
+  float getPotmeter(int index, float smoothness) {
+    //the default returnvalue is based on the inputPotmeters array, which is also controlled with mouseX and "qwerty" keys
+    float returnValue = inputPotmeters.get(index);  
     if (enableArduino) {
-      inputPotmeters.set(index, arduino.analogRead(analogPortsUsed[index]));
-      inputPotmetersSmooth.set(index, lerp(inputPotmetersSmooth.get(index), inputPotmeters.get(index), smoothness));
-    } else {
-      // set the smoothed array value to be equal to the normal array, because mouseX values don't "jump"
-      inputPotmetersSmooth.set(index, (float) inputPotmeters.get(index));
-    }
-    return constrain(map(inputPotmetersSmooth.get(index), 0, 1023, 0, 1), 0, 1);
+      if (smoothness < 1) {
+        inputPotmeters.set(index, this.arduino.analogRead(analogPortsUsed[index]));
+        inputPotmetersSmooth.set(index, lerp(inputPotmetersSmooth.get(index), inputPotmeters.get(index), smoothness));
+        returnValue = inputPotmetersSmooth.get(index);
+      } else {
+        //if we don't handle the raw input seperately (when calling getPotmeter(index, 1.0)), every additional call to getPotmeter removes the previous smoothness
+        inputPotmeters.set(index, this.arduino.analogRead(analogPortsUsed[index]));
+        returnValue = inputPotmeters.get(index);
+      }
+    } 
+    return constrain(map(returnValue, 0, 1023, 0, 1), 0, 1);
   }
-
-  float getPotmeterSmooth(int index) {
-    return getPotmeterSmooth(index, 0.2);
-  }
-
+  
   boolean getPushButton(int index) {
-    if (enableArduino) {
-      if (arduino.digitalRead(digitalPortsUsed[index]) == (pushButtonHighWhenPressed ? Arduino.HIGH : Arduino.LOW) && inputButtons.get(index) == false) inputButtons.set(index, true);
-      if (arduino.digitalRead(digitalPortsUsed[index]) == (pushButtonHighWhenPressed ? Arduino.LOW : Arduino.HIGH)) inputButtons.set(index, false);
-    }
-    return inputButtons.get(index);
+    return getPushButton(index,false);
   }
-
-  boolean getPushButtonOnce(int index) {
+  
+  boolean getPushButton(int index, boolean once) {
     if (enableArduino) {
-      if (arduino.digitalRead(digitalPortsUsed[index]) == (pushButtonHighWhenPressed ? Arduino.HIGH : Arduino.LOW) && inputButtonsActionTaken.get(index) == false) {
+      if (this.arduino.digitalRead(digitalPortsUsed[index]) == (pushButtonHighWhenPressed ? Arduino.HIGH : Arduino.LOW) && inputButtonsActionTaken.get(index) == false) {
         inputButtonsActionTaken.set(index, true);
+        inputButtons.set(index, true);
         inputButtonsOnce.set(index, true);
         this.lastFrameCount = parent.frameCount;
       }
-      if (arduino.digitalRead(digitalPortsUsed[index]) == (pushButtonHighWhenPressed ? Arduino.LOW : Arduino.HIGH)) inputButtonsActionTaken.set(index, false);
+      if (this.arduino.digitalRead(digitalPortsUsed[index]) == (pushButtonHighWhenPressed ? Arduino.LOW : Arduino.HIGH)) {
+        inputButtonsActionTaken.set(index, false);
+        inputButtons.set(index, false);
+      }
     }
-    return inputButtonsOnce.get(index);
+    if (once) return inputButtonsOnce.get(index);
+    else return inputButtons.get(index);
   }
 
 
@@ -108,14 +115,14 @@ public class ArduinoControls {
     for (int i=0; i<this.inputButtons.size(); i++) {
       //(char) ('0' + (i+1)) correctly converts keyboard 1,2,3 to chars '1','2' etc
       if (event.getKey()== (char) ('0' + (i+1)) && inputButtons.get(i) == false) {
-        println("longpressed: " + event.getKey());
+        
         inputButtons.set(i, true);
       }
       if (event.getKey()== (char) ('0' + (i+1)) && inputButtonsActionTaken.get(i) == false) {
         inputButtonsActionTaken.set(i, true);
         inputButtonsOnce.set(i, true);
         this.lastFrameCount = parent.frameCount;
-        println("keypressed at frame: " + parent.frameCount);
+        
       }
     }
   }
@@ -135,7 +142,7 @@ public class ArduinoControls {
   public void draw() {
     if (this.showInfo) {
       this.overlay.beginDraw();
-      this.overlay.background(0,200);
+      this.overlay.background(0, 200);
       this.overlay.noStroke();
       this.overlay.fill(255);
       for (int i=0; i<this.inputButtons.size(); i++) this.overlay.text("getButton("+i+ "): " + this.getPushButton(i), 5, 15+i*20);
@@ -144,8 +151,8 @@ public class ArduinoControls {
       image(this.overlay, 0, this.parent.height-100); // Draw the overlay onto the main canvas
     }
   }
-  
-  public void post(){
+
+  public void post() {
     // https://github.com/benfry/processing4/wiki/Library-Basics
     // you cant draw in post() but its perfect for resetting the inputButtonsOnce array:
     if (parent.frameCount != this.lastFrameCount) Collections.fill(this.inputButtonsOnce, Boolean.FALSE);

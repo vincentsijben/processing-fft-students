@@ -26,8 +26,8 @@ ArrayList<Circle> circles = new ArrayList<Circle>();
 
 import processing.serial.*;
 import cc.arduino.*;
-Arduino arduino;
-boolean enableArduino = false;
+Arduino arduinoo;
+boolean enableArduino = true;
 color col = 50;
 
 ArduinoControls ac;
@@ -38,7 +38,6 @@ void setup() {
 
   //fullScreen();
   size(900, 700);
-
   fAnalyzer = new FrequencyAnalyzer(this);
 
   //fAnalyzer = new FrequencyAnalyzer(this, 10);
@@ -53,26 +52,30 @@ void setup() {
   for (int i = 0; i < fAnalyzer.bands; i++) {
     circles.add(new Circle(i));
   }
-  int[] digitalPortsUsed = { 6, 7, 8 };
-  int[] analogPortsUsed = { 2, 5 };
-  ac = new ArduinoControls(this, digitalPortsUsed, analogPortsUsed);
-  ac.showInfo = true;
+  
 
   if (enableArduino) {
     println(Arduino.list());
-    arduino = new Arduino(this, Arduino.list()[2], 57600);
-    arduino.pinMode(8, Arduino.INPUT_PULLUP);
-    arduino.pinMode(7, Arduino.INPUT_PULLUP);
-    arduino.pinMode(6, Arduino.INPUT_PULLUP);
+    arduinoo = new Arduino(this, Arduino.list()[2], 57600);
+    
+    //arduino.pinMode(7, Arduino.INPUT_PULLUP);
+    //arduino.pinMode(6, Arduino.INPUT_PULLUP);
+    
+    arduinoo.pinMode(7, Arduino.INPUT);
+    arduinoo.pinMode(6, Arduino.INPUT);
     // delay the start of the draw loop so the Arduino is in the ready state
     // (the first few frames, digitalRead returned incorrect values)
     //delay(2000);
   }
+  
+  int[] digitalPortsUsed = { 6, 7 };
+  int[] analogPortsUsed = { 0, 1 };
+  ac = new ArduinoControls(this, arduinoo, digitalPortsUsed, analogPortsUsed);
+  ac.showInfo = true;
 }
 
 
 void draw() {
-
   drawCircles();
 
   stroke(200);
@@ -100,18 +103,16 @@ void draw() {
     fill(0, 0, 255);
   }
 
-  ellipse(lerp(0, width, ac.getPotmeterSmooth(0)), height-100, 50, 50);
-  ellipse(map(ac.getPotmeterSmooth(1, 0.01), 0, 1, 0, width), height-50, 50, 50);
-
-  if (ac.getPushButtonOnce(1)) {
+  ellipse(lerp(0, width, ac.getPotmeter(0)), height-100, 150, 150);
+  ellipse(map(ac.getPotmeter(1, 0.05), 0, 1, 0, width), height-50, 50, 50);
+  
+  if (ac.getPushButton(1,true)) {
     background(255, 0, 0);
   }
-  if (ac.getPushButtonOnce(0)) {
+  if (ac.getPushButton(0)) {
     col = color(255);
   }
-    if (ac.getPushButtonOnce(2)) {
-    col = color(50);
-  }
+
 
 }
 

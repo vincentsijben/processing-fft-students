@@ -16,6 +16,7 @@ see comment on https://stackoverflow.com/questions/40050731/how-to-make-two-fft-
  - Tom, kan me herinneren dat we dat ooit eens nodig hadden. Heb je usecases/voorbeelden?
  - BPM: bug: make bpm.bpm public
  - BPM: bug: showinfo bpm class should have nostroke in pushstyle
+ todo: all info panel adjustable
  */
 import ddf.minim.*;
 import ddf.minim.analysis.*;
@@ -55,6 +56,7 @@ void setup() {
   
 
   if (enableArduino) {
+    print("Serialports: ");
     println(Arduino.list());
     arduinoo = new Arduino(this, Arduino.list()[2], 57600);
     
@@ -65,13 +67,17 @@ void setup() {
     arduinoo.pinMode(6, Arduino.INPUT);
     // delay the start of the draw loop so the Arduino is in the ready state
     // (the first few frames, digitalRead returned incorrect values)
-    //delay(2000);
+    delay(2000);
   }
   
   int[] digitalPortsUsed = { 6, 7 };
   int[] analogPortsUsed = { 0, 1 };
-  ac = new ArduinoControls(this, arduinoo, digitalPortsUsed, analogPortsUsed);
-  ac.showInfo = true;
+  ac = new ArduinoControls(this, arduinoo, digitalPortsUsed, analogPortsUsed, enableArduino);
+  ac.showInfoPanel = true;
+  ac.setInfoPanel(0,0,width,200);
+  ac.infoPanelKey = 'o';
+  ac.enableKeypress = true;
+  
 }
 
 
@@ -105,8 +111,10 @@ void draw() {
 
   ellipse(lerp(0, width, ac.getPotmeter(0)), height-100, 150, 150);
   ellipse(map(ac.getPotmeter(1, 0.05), 0, 1, 0, width), height-50, 50, 50);
+  fill(0,255,0);
+  ellipse(map(ac.getPotmeter(1, 0.25), 0, 1, 0, width), height-50, 5, 5);
   
-  if (ac.getPushButton(1,true)) {
+  if (ac.getPushButtonOnce(1)) {
     background(255, 0, 0);
   }
   if (ac.getPushButton(0)) {

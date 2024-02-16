@@ -111,7 +111,7 @@ public class FrequencyAnalyzer {
 
   //normalize the average for the given index
   float getAvg(int index) {
-    return map(fft.getAvg(index), 0, this.maxVal, 0, 1);
+    return constrain(map(fft.getAvg(index), 0, this.maxVal, 0, 1), 0, 1);
   }
 
   //set a new max value for the given index and constrain the result between 0 and 1

@@ -17,6 +17,7 @@ see comment on https://stackoverflow.com/questions/40050731/how-to-make-two-fft-
  - BPM: bug: showinfo bpm class should have nostroke in pushstyle
  todo: all info panel adjustable
  todo: adjustable keys for each input
+ todo: LED pulse on bpm only when value changes, not continuously
  */
 import ddf.minim.*;
 import ddf.minim.analysis.*;
@@ -28,7 +29,7 @@ ArrayList<Circle> circles = new ArrayList<Circle>();
 import processing.serial.*;
 import cc.arduino.*;
 Arduino arduinoo;
-boolean enableArduino = false;
+boolean enableArduino = true;
 color col = 50;
 
 ArduinoControls ac;
@@ -53,45 +54,55 @@ void setup() {
   for (int i = 0; i < fa.bands; i++) {
     circles.add(new Circle(i));
   }
-  
+
 
   if (enableArduino) {
     print("Serialports: ");
     println(Arduino.list());
     arduinoo = new Arduino(this, Arduino.list()[2], 57600);
-    
+
     //arduino.pinMode(7, Arduino.INPUT_PULLUP);
     //arduino.pinMode(6, Arduino.INPUT_PULLUP);
-    
+
+    arduinoo.pinMode(11, Arduino.OUTPUT);
+    arduinoo.pinMode(10, Arduino.INPUT_PULLUP);
+    arduinoo.pinMode(9, Arduino.OUTPUT);
     arduinoo.pinMode(8, Arduino.INPUT_PULLUP);
     arduinoo.pinMode(7, Arduino.INPUT);
-    arduinoo.pinMode(6, Arduino.INPUT);
+    arduinoo.pinMode(2, Arduino.OUTPUT);
     // delay the start of the draw loop so the Arduino is in the ready state
     // (the first few frames, digitalRead returned incorrect values)
     delay(2000);
   }
-  
+
   ArrayList <PushButton> pushbuttons = new ArrayList<PushButton>();
-  pushbuttons.add(new PushButton(6, Arduino.HIGH));
-  pushbuttons.add(new PushButton(7, Arduino.HIGH));
-  pushbuttons.add(new PushButton(8, Arduino.LOW));
-  
+  //pushbuttons.add(new PushButton(7, '1'));
+  //pushbuttons.add(new PushButton(8, '2').setToLow());
+  //pushbuttons.add(new PushButton(9, '3'));
+  //pushbuttons.add(new PushButton(10, '4').setToLow());
+
   ArrayList <Potentiometer> potmeters = new ArrayList<Potentiometer>();
-  potmeters.add(new Potentiometer(0));
-  potmeters.add(new Potentiometer(1));
-  potmeters.add(new Potentiometer(2, 2, 945));
-  
-  ac = new ArduinoControls(this, arduinoo, pushbuttons, potmeters, enableArduino);
+  //potmeters.add(new Potentiometer(0, 'q'));
+  //potmeters.add(new Potentiometer(1, 'w'));
+  //potmeters.add(new Potentiometer(2, 'e').setMinValue(2).setMaxValue(945));
+
+  ArrayList <LED> leds = new ArrayList<LED>();
+  //leds.add(new LED(2));
+  //leds.add(new LED(9).setToPWM());
+  leds.add(new LED(2));
+
+  ac = new ArduinoControls(this, arduinoo, pushbuttons, potmeters, leds, enableArduino);
   ac.showInfoPanel = true;
-  ac.setInfoPanel(0,0,width,200);
+  ac.setInfoPanel(0, 0, width, 200);
   ac.infoPanelKey = 'o';
   ac.enableKeypress = true;
-  
 }
 
 
 void draw() {
   drawCircles();
+
+
 
   stroke(200);
   strokeWeight(5);
@@ -114,21 +125,39 @@ void draw() {
   fill(255, 0, 0);
   noStroke();
 
-  if (ac.getPushButton(0) && ac.getPushButton(1)) {
-    fill(0, 0, 255);
-  }
+  //if (ac.getPushButton(0) && ac.getPushButton(1)) {
+  //  fill(0, 0, 255);
+  //}
 
-  ellipse(lerp(0, width, ac.getPotmeter(0)), height-100, 150, 150);
-  ellipse(map(ac.getPotmeter(1, 0.05), 0, 1, 0, width), height-50, 50, 50);
-  fill(0,255,0);
-  ellipse(map(ac.getPotmeter(2, 0.25), 0, 1, 0, width), height-50, 5, 5);
+  //ellipse(lerp(0, width, ac.getPotmeter(0)), height-100, 150, 150);
+  //ellipse(map(ac.getPotmeter(1, 0.05), 0, 1, 0, width), height-50, 50, 50);
+  //fill(0,255,0);
+  //ellipse(map(ac.getPotmeter(2, 0.25), 0, 1, 0, width), height-50, 5, 5);
+
+  //if (ac.getPushButtonOnce(1)) {
+  //  background(255, 0, 0);
+  //arduinoo.digitalWrite(2, Arduino.HIGH);
+  //arduinoo.digitalWrite(9, Arduino.HIGH);
+  //}
+  //if (ac.getPushButton(0)) {
+  //  col = color(255);
+  //  arduinoo.analogWrite(11,int(map(mouseX,0,width,0,255)));
+  //}
+  if (mouseX > width/2) {
+    int val = int(map(mouseX, width/2, width, 0, 255));
+
+    //ac.setLED(1, val);
+    ac.setLEDToOn(0);
+  } else {
+    //ac.setLED(1, 0);
+    ac.setLEDToOff(0);
+  }
+  //println(fa.getAvg(7));
+  //if (fa.getAvg(7)>0.5) {
+  //  ac.setLEDToOn(0);
+  //} else ac.setLEDToOff(0);
   
-  if (ac.getPushButtonOnce(1)) {
-    background(255, 0, 0);
-  }
-  if (ac.getPushButton(0)) {
-    col = color(255);
-  }
-
-
+  //if (frameCount%4==0) ac.setLEDToOn(0);
+  //else ac.setLEDToOff(0);
+  
 }

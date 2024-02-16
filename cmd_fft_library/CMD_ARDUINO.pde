@@ -5,24 +5,49 @@
  - executing single commands when longpressing getPushButtonOnce(0);
  - multiple pushbuttons being pressed if (getPushButton(0) && getPushButton(1))
  - smooth analog potmeter values getPotmeter(0,0.02); reducing jumping values
- - fallback to keyboard and mouse when not using arduino. 1 to 9 for pushbuttons. q,w,e,r,t,y together with mouseX for potmeters
+ - fallback to keyboard and mouse when not using arduino. e.g. 1 to 9 for pushbuttons. q,w,e,r,t,y together with mouseX for potmeters
  - adjustable infopanel (set hotkey, size, location)
  */
 
+public class LED {
+  private int digitalPort;
+  private boolean pwm;
+  private boolean on;
+  private int value;
+
+  public LED(int digitalPort) {
+    this.digitalPort = digitalPort;
+    this.on = Boolean.FALSE;
+    this.pwm = Boolean.FALSE;
+    this.value = 0;
+  }
+
+  public LED setToPWM() {
+    this.pwm = Boolean.TRUE;
+    return this;
+  }
+}
 
 public class PushButton {
-  private int signalPressed; // when pressed, does the button return Arduino.HIGH or Arduino.LOW
+  private int signalPressed;
   private int digitalPort;
   private boolean pressed;
   private boolean pressedOnce;
   private boolean actionTaken;
+  private char keyboardKey;
 
-  public PushButton(int digitalPort, int signalPressed) {
-    this.signalPressed = signalPressed;
+  public PushButton(int digitalPort, char keyboardKey) {
     this.digitalPort = digitalPort;
-    this.pressed = false;
-    this.pressedOnce = false;
-    this.actionTaken = false;
+    this.keyboardKey = keyboardKey;
+    this.signalPressed = Arduino.HIGH; // By default, pressing a button returns Arduino.HIGH
+    this.pressed = Boolean.FALSE;
+    this.pressedOnce = Boolean.FALSE;
+    this.actionTaken = Boolean.FALSE;
+  }
+
+  public PushButton setToLow() {
+    this.signalPressed = Arduino.LOW;
+    return this;
   }
 }
 
@@ -32,15 +57,25 @@ public class Potentiometer {
   private int analogPort;
   private int minValue;
   private int maxValue;
+  private char keyboardKey;
 
-  public Potentiometer(int analogPort) {
-    this(analogPort, 0, 1023);
+
+  public Potentiometer(int analogPort, char keyboardKey) {
+    this.analogPort = analogPort;
+    this.keyboardKey = keyboardKey;
+    this.value = 0;
+    this.smoothValue = 0;
+    this.minValue = 0;
+    this.maxValue = 1023;
   }
 
-  public Potentiometer(int analogPort, int minValue, int maxValue) {
-    this.analogPort = analogPort;
+  public Potentiometer setMinValue(int minValue) {
     this.minValue = minValue;
+    return this;
+  }
+  public Potentiometer setMaxValue(int maxValue) {
     this.maxValue = maxValue;
+    return this;
   }
 }
 
@@ -56,12 +91,7 @@ public class ArduinoControls {
   PGraphics overlay;
   ArrayList <PushButton> pushbuttons;
   ArrayList <Potentiometer> potmeters;
-
-
-  // some buttons return a LOW value when pressed
-  // if you're using these buttons set this variable to false
-  //boolean pushButtonHighWhenPressed = false;
-
+  ArrayList <LED> leds;
 
   int lastFrameCount = -1;
   boolean keyPressedActionTaken = false; // Flag to track if the action for a key press has been taken
@@ -69,11 +99,12 @@ public class ArduinoControls {
   boolean showInfoPanel = false;
   char infoPanelKey = 'o';
 
-  ArduinoControls(PApplet parent, Arduino a, ArrayList <PushButton> pushbuttons, ArrayList <Potentiometer> potmeters, boolean enableArduino) {
+  ArduinoControls(PApplet parent, Arduino a, ArrayList <PushButton> pushbuttons, ArrayList <Potentiometer> potmeters, ArrayList <LED> leds, boolean enableArduino) {
     this.arduino = a;
     this.enableArduino = enableArduino;
     this.pushbuttons = pushbuttons;
     this.potmeters = potmeters;
+    this.leds = leds;
     this.parent = parent;
 
     parent.registerMethod("draw", this);
@@ -85,24 +116,52 @@ public class ArduinoControls {
     this.overlay = parent.createGraphics(infoPanelLocation[2], infoPanelLocation[3]);
   }
 
+  public void setLEDToOn(int index) {
+    if (index >= 0 && index < this.leds.size()) {
+      LED led = this.leds.get(index);
+      if (led.pwm) this.setLED(index, 255);
+      else this.setLED(index, Arduino.HIGH);
+    } else {
+      println("warning: index " + index + " was used which is out of bounds for the ArrayList leds with size " + leds.size());
+    }
+  }
+
+  public void setLEDToOff(int index) {
+    this.setLED(index, Arduino.LOW);
+  }
+
+  public void setLED(int index, int value) {
+    if (index >= 0 && index < this.leds.size()) {
+      LED led = this.leds.get(index);
+      if (led.pwm) this.arduino.analogWrite(led.digitalPort, value);
+      else this.arduino.digitalWrite(led.digitalPort, value);
+    } else {
+      println("warning: index " + index + " was used which is out of bounds for the ArrayList leds with size " + leds.size());
+    }
+  }
+
   public float getPotmeter(int index) {
     return this.getPotmeter(index, 1.0);
   }
 
   public float getPotmeter(int index, float smoothness) {
-    //the default returnvalue is based on the inputPotmeters array, which is also controlled with mouseX and "qwerty" keys
-    float returnValue = this.potmeters.get(index).value;
-    if (this.enableArduino) {
-      this.potmeters.get(index).value = this.arduino.analogRead(this.potmeters.get(index).analogPort);
-      returnValue = this.potmeters.get(index).value;
+    if (index >= 0 && index < this.potmeters.size()) {
+      float returnValue = this.potmeters.get(index).value;
+      if (this.enableArduino) {
+        this.potmeters.get(index).value = this.arduino.analogRead(this.potmeters.get(index).analogPort);
+        returnValue = this.potmeters.get(index).value;
 
-      //if we don't handle the raw input seperately (when calling getPotmeter(index, 1.0)), every additional call to getPotmeter removes the previous smoothness
-      if (smoothness < 1.0) {
-        this.potmeters.get(index).smoothValue = lerp(this.potmeters.get(index).smoothValue, this.potmeters.get(index).value, smoothness);
-        returnValue = this.potmeters.get(index).smoothValue;
+        //if we don't handle the raw input seperately (when calling getPotmeter(index, 1.0)), every additional call to getPotmeter removes the previous smoothness
+        if (smoothness < 1.0) {
+          this.potmeters.get(index).smoothValue = lerp(this.potmeters.get(index).smoothValue, this.potmeters.get(index).value, smoothness);
+          returnValue = this.potmeters.get(index).smoothValue;
+        }
       }
+      return constrain(map(returnValue, this.potmeters.get(index).minValue, this.potmeters.get(index).maxValue, 0, 1), 0, 1);
+    } else {
+      println("warning: index " + index + " was used which is out of bounds for the ArrayList potmeters with size " + potmeters.size() + ", returning 0.0");
+      return 0.0;
     }
-    return constrain(map(returnValue, this.potmeters.get(index).minValue, this.potmeters.get(index).maxValue, 0, 1), 0, 1);
   }
 
   public boolean getPushButtonOnce(int index) {
@@ -114,22 +173,25 @@ public class ArduinoControls {
   }
 
   private boolean getPushButton(int index, boolean once) {
-    if (this.enableArduino) {
-      int port = this.pushbuttons.get(index).digitalPort;
-      int highWhenPressed = this.pushbuttons.get(index).signalPressed;
-      boolean actionTaken = this.pushbuttons.get(index).actionTaken;
-      if (this.arduino.digitalRead(port) == highWhenPressed && actionTaken == false) {
-        this.pushbuttons.get(index).actionTaken = true;
-        this.pushbuttons.get(index).pressed = true;
-        this.pushbuttons.get(index).pressedOnce = true;
-        this.lastFrameCount = this.parent.frameCount;
+    if (index >= 0 && index < this.pushbuttons.size()) {
+      PushButton pushbutton = this.pushbuttons.get(index);
+      if (this.enableArduino) {
+        if (this.arduino.digitalRead(pushbutton.digitalPort) == pushbutton.signalPressed && pushbutton.actionTaken == false) {
+          pushbutton.actionTaken = true;
+          pushbutton.pressed = true;
+          pushbutton.pressedOnce = true;
+          this.lastFrameCount = this.parent.frameCount;
+        }
+        if (this.arduino.digitalRead(pushbutton.digitalPort) != pushbutton.signalPressed) {
+          pushbutton.actionTaken = false;
+          pushbutton.pressed = false;
+        }
       }
-      if (this.arduino.digitalRead(port) != highWhenPressed) {
-        this.pushbuttons.get(index).actionTaken = false;
-        this.pushbuttons.get(index).pressed = false;
-      }
+      return once ? pushbutton.pressedOnce : pushbutton.pressed;
+    } else {
+      println("warning: index " + index + " was used which is out of bounds for the ArrayList pushbuttons with size " + pushbuttons.size() + ", returning false");
+      return false;
     }
-    return once ? this.pushbuttons.get(index).pressedOnce : this.pushbuttons.get(index).pressed;
   }
 
   public void keyEvent(KeyEvent event) {
@@ -146,21 +208,17 @@ public class ArduinoControls {
     //handle long press events, only works in default renderer, not in P2D or P3D
     //if in P2D or P3D mode, quick-tap the q,w or e button to get the correct mouseX value
     for (int i=0; i<this.potmeters.size(); i++) {
-      char mappedKey = "qwerty".toCharArray()[i];
-      if (event.getKey() == mappedKey ) this.potmeters.get(i).value = constrain(int(map(this.parent.mouseX, 0, width, this.potmeters.get(i).minValue, this.potmeters.get(i).maxValue)), this.potmeters.get(i).minValue, this.potmeters.get(i).maxValue);
+      Potentiometer potmeter = this.potmeters.get(i);
+      if (event.getKey() == potmeter.keyboardKey ) potmeter.value = constrain(int(map(this.parent.mouseX, 0, width, potmeter.minValue, potmeter.maxValue)), potmeter.minValue, potmeter.maxValue);
     }
 
     for (int i=0; i<this.pushbuttons.size(); i++) {
-      //(char) ('0' + (i+1)) correctly converts keyboard 1,2,3 to chars '1','2' etc
-      /*
-      CHECK IF THESE TO IFS CAN BE COMBINED
-       */
-      if (event.getKey()== (char) ('0' + (i+1)) && this.pushbuttons.get(i).pressed == false) {
-        this.pushbuttons.get(i).pressed = true;
-      }
-      if (event.getKey()== (char) ('0' + (i+1)) && this.pushbuttons.get(i).actionTaken == false) {
-        this.pushbuttons.get(i).actionTaken = true;
-        this.pushbuttons.get(i).pressedOnce = true;
+      PushButton pushbutton = this.pushbuttons.get(i);
+
+      if (event.getKey()== pushbutton.keyboardKey && pushbutton.actionTaken == false) {
+        pushbutton.actionTaken = true;
+        pushbutton.pressed = true;
+        pushbutton.pressedOnce = true;
         this.lastFrameCount = this.parent.frameCount;
       }
     }
@@ -173,16 +231,13 @@ public class ArduinoControls {
 
   private void onKeyRelease(KeyEvent event) {
     // Reset the flag when the key is released, allowing for the action to be taken on the next key press
-    char keyChar = event.getKey();
-    if (Character.isDigit(keyChar)) {
-      int keyValue = keyChar - '0';
-      if (keyValue <= this.pushbuttons.size() && keyValue > 0) {
-        //this.inputButtonsActionTaken.set((keyValue-1), false);
-        this.pushbuttons.get((keyValue-1)).actionTaken = false;
-        this.pushbuttons.get((keyValue-1)).pressed = false;
-        //this.inputButtons.set((keyValue-1), false);
+    for (PushButton button : pushbuttons) {
+      if (button.keyboardKey == event.getKey()) {
+        button.actionTaken = false;
+        button.pressed = false;
       }
     }
+
     // Reset the flag when the key is released, allowing for the action to be taken on the next key press
     this.keyPressedActionTaken = false;
   }
@@ -221,11 +276,6 @@ public class ArduinoControls {
   public void post() {
     // https://github.com/benfry/processing4/wiki/Library-Basics
     // you cant draw in post() but its perfect for resetting the inputButtonsOnce array:
-    if (this.parent.frameCount != this.lastFrameCount) {
-
-      for (PushButton button : pushbuttons) {
-        button.pressedOnce = false;
-      }
-    }
+    if (this.parent.frameCount != this.lastFrameCount) for (PushButton button : pushbuttons) button.pressedOnce = false;
   }
 }

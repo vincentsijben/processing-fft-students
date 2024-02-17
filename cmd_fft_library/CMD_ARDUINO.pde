@@ -12,12 +12,13 @@
 public class LED {
   private int digitalPort;
   private boolean pwm;
-  private boolean on;
+
+  //private boolean on;
   private int value;
 
   public LED(int digitalPort) {
     this.digitalPort = digitalPort;
-    this.on = Boolean.FALSE;
+    //this.on = Boolean.FALSE;
     this.pwm = Boolean.FALSE;
     this.value = 0;
   }
@@ -105,6 +106,7 @@ public class ArduinoControls {
     this.pushbuttons = pushbuttons;
     this.potmeters = potmeters;
     this.leds = leds;
+    //this.arduino.pinMode(6, Arduino.OUTPUT);
     this.parent = parent;
 
     parent.registerMethod("draw", this);
@@ -133,8 +135,11 @@ public class ArduinoControls {
   public void setLED(int index, int value) {
     if (index >= 0 && index < this.leds.size()) {
       LED led = this.leds.get(index);
-      if (led.pwm) this.arduino.analogWrite(led.digitalPort, value);
-      else this.arduino.digitalWrite(led.digitalPort, value);
+      if (value != led.value) { // no need to continuously write the same value, causes flickering on pwm
+        led.value = value;
+        if (led.pwm) this.arduino.analogWrite(led.digitalPort, value);
+        else this.arduino.digitalWrite(led.digitalPort, value);
+      }
     } else {
       println("warning: index " + index + " was used which is out of bounds for the ArrayList leds with size " + leds.size());
     }

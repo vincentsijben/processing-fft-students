@@ -17,7 +17,7 @@ see comment on https://stackoverflow.com/questions/40050731/how-to-make-two-fft-
  - BPM: bug: showinfo bpm class should have nostroke in pushstyle
  todo: all info panel adjustable
  todo: adjustable keys for each input
- todo: LED pulse on bpm only when value changes, not continuously
+ 
  */
 import ddf.minim.*;
 import ddf.minim.analysis.*;
@@ -68,8 +68,8 @@ void setup() {
     arduinoo.pinMode(10, Arduino.INPUT_PULLUP);
     arduinoo.pinMode(9, Arduino.OUTPUT);
     arduinoo.pinMode(8, Arduino.INPUT_PULLUP);
-    arduinoo.pinMode(7, Arduino.INPUT);
-    arduinoo.pinMode(2, Arduino.OUTPUT);
+    //arduinoo.pinMode(7, Arduino.OUTPUT);
+    //arduinoo.pinMode(6, Arduino.OUTPUT);
     // delay the start of the draw loop so the Arduino is in the ready state
     // (the first few frames, digitalRead returned incorrect values)
     delay(2000);
@@ -87,9 +87,8 @@ void setup() {
   //potmeters.add(new Potentiometer(2, 'e').setMinValue(2).setMaxValue(945));
 
   ArrayList <LED> leds = new ArrayList<LED>();
-  //leds.add(new LED(2));
-  //leds.add(new LED(9).setToPWM());
-  leds.add(new LED(2));
+  leds.add(new LED(7));
+  leds.add(new LED(9).setToPWM());
 
   ac = new ArduinoControls(this, arduinoo, pushbuttons, potmeters, leds, enableArduino);
   ac.showInfoPanel = true;
@@ -143,21 +142,24 @@ void draw() {
   //  col = color(255);
   //  arduinoo.analogWrite(11,int(map(mouseX,0,width,0,255)));
   //}
-  if (mouseX > width/2) {
-    int val = int(map(mouseX, width/2, width, 0, 255));
+  ac.setLED(0, 1);
+  ac.setLED(1, int(lerp(0, 255, fa.getAvg(7))));
+  //if (mouseX > width/2) {
+  //  //ac.setLED(1, val);
+  //  //ac.setLEDToOn(0);
+  //  ac.setLED(0, Arduino.HIGH);
+  //  //ac.setLED(1,int(map(mouseX,width/2,width,0,255)));
+  //} else {
+  //  //ac.setLED(1, 0);
+  //  ac.setLED(0, Arduino.LOW);
+  //  ac.setLEDToOff(1);
+  //}
 
-    //ac.setLED(1, val);
-    ac.setLEDToOn(0);
-  } else {
-    //ac.setLED(1, 0);
-    ac.setLEDToOff(0);
-  }
   //println(fa.getAvg(7));
   //if (fa.getAvg(7)>0.5) {
   //  ac.setLEDToOn(0);
   //} else ac.setLEDToOff(0);
-  
+
   //if (frameCount%4==0) ac.setLEDToOn(0);
   //else ac.setLEDToOff(0);
-  
 }

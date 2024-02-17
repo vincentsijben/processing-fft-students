@@ -65,7 +65,7 @@ void setup() {
     //arduino.pinMode(6, Arduino.INPUT_PULLUP);
 
     arduinoo.pinMode(11, Arduino.OUTPUT);
-    arduinoo.pinMode(10, Arduino.INPUT_PULLUP);
+    //arduinoo.pinMode(10, Arduino.INPUT_PULLUP);
     arduinoo.pinMode(9, Arduino.OUTPUT);
     arduinoo.pinMode(8, Arduino.INPUT_PULLUP);
     //arduinoo.pinMode(7, Arduino.OUTPUT);
@@ -89,6 +89,7 @@ void setup() {
   ArrayList <LED> leds = new ArrayList<LED>();
   leds.add(new LED(7));
   leds.add(new LED(9).setToPWM());
+  leds.add(new LED(10).setToPWM());
 
   ac = new ArduinoControls(this, arduinoo, pushbuttons, potmeters, leds, enableArduino);
   ac.showInfoPanel = true;
@@ -144,6 +145,7 @@ void draw() {
   //}
   ac.setLED(0, 1);
   ac.setLED(1, int(lerp(0, 255, fa.getAvg(7))));
+  ac.setLED(2, int(lerp(0, 255, fa.getAvg(7))));
   //if (mouseX > width/2) {
   //  //ac.setLED(1, val);
   //  //ac.setLEDToOn(0);

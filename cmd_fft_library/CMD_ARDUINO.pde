@@ -12,17 +12,15 @@
 public class LED {
   private int digitalPort;
   private boolean pwm;
-
-  //private boolean on;
   private int value;
 
   public LED(int digitalPort) {
     this.digitalPort = digitalPort;
-    //this.on = Boolean.FALSE;
     this.pwm = Boolean.FALSE;
     this.value = 0;
   }
 
+  //the user can decide to use pwm (analogWrite) for pwm pins, or digitalWrite (1-0)
   public LED setToPWM() {
     this.pwm = Boolean.TRUE;
     return this;
